@@ -10,12 +10,34 @@ from bokeh.layouts import row
 
 def heatmap_scatter(
     data,
-    cell_width = 15,
-    cell_height = 15,
-    axis_buffer = 200,
+    hm_width = 800,
+    hm_height = 800,
     scatter_width = 400,
-    scatter_height = 400,
 ):
+    """
+    Make an interactive correlation heatmap where you can
+    click on a square and bring up the raw data scatter plot
+
+    Will compute the correlation matrix automatically, only
+    displaying results for continuous, numerical columns
+
+    Parameters
+    ----------
+    data: DataFrame
+        Raw data for correlation analysis
+    hm_width: int
+        target width of the heatmap plot in pixels
+    hm_height: int
+        target height of the heatmap plot in pixels
+    scatter_width: int
+        target width of the scatter plot in pixels. Scatter height
+        will be calculated to get a square aspect ratio.
+    
+    Returns
+    -------
+    layout: Row
+        Bokeh Row object (contains heatmap and scatter plots)
+    """
 
     # Prepare data
     df_corr = pd.DataFrame(data.corr().stack(), columns=['coef']).reset_index()
@@ -24,7 +46,6 @@ def heatmap_scatter(
     colors = list(reversed(PiYG11))
     mapper = LinearColorMapper(palette=colors, low=-1, high=1)
     headers = df_corr['level_0'].unique()
-    n_cells = len(headers)
 
     # Build heatmap
     TOOLS_HM = "hover,save,tap,reset"
@@ -35,8 +56,8 @@ def heatmap_scatter(
         x_range=headers,
         y_range=list(reversed(headers)),
         x_axis_location="above",
-        width=n_cells * cell_width + axis_buffer,
-        height=n_cells * cell_height + axis_buffer,
+        width=hm_width,
+        height=hm_height,
         tools=TOOLS_HM,
         toolbar_location='below',
         tooltips=[
@@ -75,8 +96,9 @@ def heatmap_scatter(
 
 
     # Build scatterplot
-    SCATTER_TOOLS = "hover,save,reset,wheel_zoom"
+    SCATTER_TOOLS = "hover,save,reset,wheel_zoom,pan"
     cds_scatter = ColumnDataSource(data)
+    scatter_height = int(scatter_width * 1.43)
 
     p2 = figure(
         title=f"{headers[1]} vs. {headers[0]}",
@@ -86,11 +108,12 @@ def heatmap_scatter(
         height=scatter_height,
         tools=SCATTER_TOOLS,
         toolbar_location='right',
+        active_scroll='wheel_zoom',
         tooltips=[
             (hh, f'@{{{hh}}}') for hh in headers
             # (headers[0], f'@{headers[0]}'),
             # (headers[1], f'@{headers[1]}'),
-        ]
+        ],
     )
     p2_marks = p2.circle(
         headers[0],
@@ -103,6 +126,7 @@ def heatmap_scatter(
     p2.xaxis.axis_label_text_font_size = "10pt"
     p2.yaxis.axis_label_text_font_size = "10pt"
 
+    # Build callback and apply to heatmap's taptool
     callback = CustomJS(
         args=dict(s=cds_hm, p2=p2, p2x=p2.xaxis[0], p2y=p2.yaxis[0], p2m=p2_marks),
         code="""
