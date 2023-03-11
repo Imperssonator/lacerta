@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from bokeh.io import curdoc
 from bokeh.palettes import PiYG11
 from bokeh.models import (
     BasicTicker, ColorBar, LinearColorMapper, CustomJS, ColumnDataSource, TapTool, OpenURL
@@ -10,9 +11,10 @@ from bokeh.layouts import row
 
 def heatmap_scatter(
     data,
-    hm_width = 800,
-    hm_height = 800,
-    scatter_width = 400,
+    hm_width=800,
+    hm_height=800,
+    scatter_width=400,
+    theme="caliber",
 ):
     """
     Make an interactive correlation heatmap where you can
@@ -48,6 +50,7 @@ def heatmap_scatter(
     headers = df_corr['level_0'].unique()
 
     # Build heatmap
+    curdoc().theme = theme
     TOOLS_HM = "hover,save,tap,reset"
     cds_hm = ColumnDataSource(df_corr)
 
