@@ -1,13 +1,18 @@
 import streamlit as st
 import pandas as pd
-from lacerta.heatmap_scatter import heatmap_scatter
+from lacerta.correlations import heatmap_scatter
 from bokeh.embed import file_html
 from bokeh.resources import CDN
 # import base64
 
 
-st.set_page_config(layout="wide")
-st.title("Interactive Correlation Heatmap")
+# Set default page config
+st.set_page_config(
+    page_title="Interactive Correlation Heatmap",
+    page_icon=":chart_with_upwards_trend:",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 # Upload CSV file
 uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
@@ -17,10 +22,10 @@ if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     
     # Create Bokeh figure
-    layout = heatmap_scatter(df, theme="night_sky")
+    layout = heatmap_scatter(df)
 
     # Generate Bokeh HTML file and link to it in a new page
-    html = file_html(layout, CDN, "Correlation Heatmap", theme="night_sky")
+    html = file_html(layout, CDN, "Correlation Heatmap")
     st.components.v1.html(html, width=None, height=800, scrolling=True)
     
     # Display the data as a table

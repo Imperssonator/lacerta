@@ -1,20 +1,53 @@
+from lacerta.base import scatterplot
+
 import pandas as pd
 import numpy as np
+from scipy.stats import pearsonr
+
 from bokeh.io import curdoc
 from bokeh.palettes import PiYG11
+from bokeh.plotting import figure
+from bokeh.layouts import row
 from bokeh.models import (
     BasicTicker, ColorBar, LinearColorMapper, CustomJS, ColumnDataSource, TapTool, OpenURL
 )
-from bokeh.plotting import figure
-from bokeh.layouts import row
 
 
-def heatmap_scatter(
+def calculate_correlations(
+    df
+):
+    """
+    Calculate correlations between all columns in a dataframe
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+
+    Returns
+    -------
+    results_df: pd.DataFrame
+        Columns: col1, col2, coef, p_value
+    """
+    # Initialize an empty list to store the results
+    results = []
+
+    # Get all column pairs and calculate correlations
+    for col1 in df.columns:
+        for col2 in df.columns:
+            coef, p_value = pearsonr(df[col1], df[col2])
+            results.append({'col1': col1, 'col2': col2, 'coef': coef, 'p_value': p_value})
+
+    # Convert results to a DataFrame
+    result_df = pd.DataFrame(results)
+    
+    return result_df
+
+
+def correlation_heatmap_scatter(
     data,
     hm_width=800,
     hm_height=800,
     scatter_width=400,
-    theme="caliber",
 ):
     """
     Make an interactive correlation heatmap where you can
@@ -41,16 +74,15 @@ def heatmap_scatter(
         Bokeh Row object (contains heatmap and scatter plots)
     """
 
-    # Prepare data
-    df_corr = pd.DataFrame(data.corr().stack(), columns=['coef']).reset_index()
+    # Calculate correlations
+    df_corr = calculate_correlations(data)
     
     # Set up color map and plot size
     colors = list(reversed(PiYG11))
     mapper = LinearColorMapper(palette=colors, low=-1, high=1)
-    headers = df_corr['level_0'].unique()
+    headers = df_corr['col1'].unique()
 
     # Build heatmap
-    curdoc().theme = theme
     TOOLS_HM = "hover,save,tap,reset"
     cds_hm = ColumnDataSource(df_corr)
 
@@ -64,8 +96,8 @@ def heatmap_scatter(
         tools=TOOLS_HM,
         toolbar_location='below',
         tooltips=[
-            ('x', '@level_0'),
-            ('y', '@level_1'),
+            ('x', '@col1'),
+            ('y', '@col2'),
             ('Coef.', '@coef'),
         ]
     )
@@ -78,8 +110,8 @@ def heatmap_scatter(
     p.xaxis.major_label_orientation = np.pi / 3
 
     p.rect(
-        x="level_0",
-        y="level_1",
+        x="col1",
+        y="col2",
         width=0.95,
         height=0.95,
         source=cds_hm,
@@ -98,44 +130,24 @@ def heatmap_scatter(
     p.add_layout(color_bar, 'right')
 
 
-    # Build scatterplot
-    SCATTER_TOOLS = "hover,save,reset,wheel_zoom,pan"
-    cds_scatter = ColumnDataSource(data)
+    # Build scatterplot figure
     scatter_height = int(scatter_width * 1.43)
-
-    p2 = figure(
-        title=f"{headers[1]} vs. {headers[0]}",
-        x_axis_label=headers[0],
-        y_axis_label=headers[1],
-        width=scatter_width,
-        height=scatter_height,
-        tools=SCATTER_TOOLS,
-        toolbar_location='right',
-        active_scroll='wheel_zoom',
-        tooltips=[
-            (hh, f'@{{{hh}}}') for hh in headers
-            # (headers[0], f'@{headers[0]}'),
-            # (headers[1], f'@{headers[1]}'),
-        ],
-    )
-    p2_marks = p2.circle(
+    p2, p2_marks, p2_cds = scatterplot(
+        data,
         headers[0],
         headers[1],
-        source=cds_scatter,
-        alpha=0.6,
-        size=8,
+        width=scatter_width,
+        height=scatter_height,
+        title=f"{headers[1]} vs. {headers[0]}",
     )
-    p2.axis.major_label_text_font_size="8pt"
-    p2.xaxis.axis_label_text_font_size = "10pt"
-    p2.yaxis.axis_label_text_font_size = "10pt"
 
     # Build callback and apply to heatmap's taptool
     callback = CustomJS(
         args=dict(s=cds_hm, p2=p2, p2x=p2.xaxis[0], p2y=p2.yaxis[0], p2m=p2_marks),
         code="""
         const ind = s.selected.indices[s.selected.indices.length - 1]
-        const newx = s.data.level_0[ind]
-        const newy = s.data.level_1[ind]
+        const newx = s.data.col1[ind]
+        const newy = s.data.col2[ind]
         // console.log(ind)
         // console.log(newx, newy)
         // console.log(p2)
@@ -159,3 +171,5 @@ def heatmap_scatter(
     layout = row(p, p2)
     
     return layout
+
+
