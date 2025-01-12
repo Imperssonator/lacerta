@@ -69,12 +69,11 @@ def scatterplot(
         toolbar_location=toolbar_location,
         active_scroll=active_scroll,
         tooltips=tooltips,
-        **kwargs
     )
 
     marks = p.scatter(
-        headers[0],
-        headers[1],
+        x,
+        y,
         source=cds,
         marker=marker,
         size=marker_size,
