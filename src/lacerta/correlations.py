@@ -7,7 +7,7 @@ from scipy.stats import pearsonr
 from bokeh.io import curdoc
 from bokeh.palettes import PiYG11
 from bokeh.plotting import figure
-from bokeh.layouts import row
+from bokeh.layouts import row, column
 from bokeh.models import (
     BasicTicker, ColorBar, LinearColorMapper, CustomJS, ColumnDataSource, TapTool, OpenURL
 )
@@ -67,7 +67,7 @@ def correlation_heatmap_scatter(
     data,
     hm_width=800,
     hm_height=800,
-    scatter_width=400,
+    scatter_height=400,
 ):
     """
     Make an interactive correlation heatmap where you can
@@ -96,15 +96,19 @@ def correlation_heatmap_scatter(
 
     # Calculate correlations
     df_corr = calculate_correlations(data)
-    
-    # Set up color map and plot size
-    colors = list(reversed(PiYG11))
-    mapper = LinearColorMapper(palette=colors, low=-1, high=1)
-    headers = df_corr['col1'].unique()
 
     # Build heatmap
     TOOLS_HM = "hover,save,tap,reset"
     cds_hm = ColumnDataSource(df_corr)
+
+    # Set up color map and plot size
+    colors = list(reversed(PiYG11))
+    mapper = LinearColorMapper(palette=colors, low=-1, high=1)
+    headers = df_corr['col1'].unique()
+    
+    # Make the figure at least 800 pix but no more than 2000
+    hm_width = min(max(800, len(data.columns) * 20), 2000)
+    hm_height = hm_width
 
     p = figure(
         title="Correlation Heatmap",
@@ -151,7 +155,7 @@ def correlation_heatmap_scatter(
 
 
     # Build scatterplot figure
-    scatter_height = int(scatter_width * 1.43)
+    scatter_width = int(1.43 * scatter_height)
     p2, p2_marks, p2_cds = scatterplot(
         data,
         headers[0],
@@ -188,7 +192,7 @@ def correlation_heatmap_scatter(
     taptool = p.select(type=TapTool)
     taptool.callback = callback
 
-    layout = row(p, p2)
+    layout = column(p, p2)
     
     return layout
 
